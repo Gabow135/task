@@ -1,4 +1,5 @@
 import initSqlJs from 'sql.js';
+import { getCurrentWorkspace, getWorkspaceDbKey } from '../utils/workspace';
 
 export interface Board {
   id: number;
@@ -26,8 +27,9 @@ export interface Card {
 
 class Database {
   private db: any = null;
+  private currentWorkspaceId: string | null = null;
 
-  async init() {
+  async init(workspaceId?: string) {
     const SQL = await initSqlJs({
       locateFile: (file) => {
         // Handle different deployment environments
@@ -41,8 +43,17 @@ class Database {
       }
     });
 
-    // Check if we have saved data in localStorage
-    const savedData = localStorage.getItem('trello-db');
+    // Set current workspace
+    if (workspaceId) {
+      this.currentWorkspaceId = workspaceId;
+    } else {
+      const currentWorkspace = getCurrentWorkspace();
+      this.currentWorkspaceId = currentWorkspace?.id || null;
+    }
+
+    // Check if we have saved data in localStorage for this workspace
+    const dbKey = this.currentWorkspaceId ? getWorkspaceDbKey(this.currentWorkspaceId) : 'trello-db';
+    const savedData = localStorage.getItem(dbKey);
     if (savedData) {
       const binaryArray = new Uint8Array(JSON.parse(savedData));
       this.db = new SQL.Database(binaryArray);
@@ -120,7 +131,8 @@ class Database {
 
   // Method to reset database (for development/troubleshooting)
   resetDatabase(): void {
-    localStorage.removeItem('trello-db');
+    const dbKey = this.currentWorkspaceId ? getWorkspaceDbKey(this.currentWorkspaceId) : 'trello-db';
+    localStorage.removeItem(dbKey);
     this.db = new (this.db.constructor)();
     this.createTables();
     console.log('Database reset successfully');
@@ -133,7 +145,13 @@ class Database {
     }
     const data = this.db.export();
     const buffer = new Uint8Array(data);
-    localStorage.setItem('trello-db', JSON.stringify(Array.from(buffer)));
+    const dbKey = this.currentWorkspaceId ? getWorkspaceDbKey(this.currentWorkspaceId) : 'trello-db';
+    localStorage.setItem(dbKey, JSON.stringify(Array.from(buffer)));
+  }
+
+  // Switch to a different workspace
+  async switchWorkspace(workspaceId: string) {
+    await this.init(workspaceId);
   }
 
   // Board operations

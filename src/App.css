@@ -717,3 +717,276 @@ body {
   object-fit: cover;
   border-radius: 4px;
 }
+
+/* Workspace Management Styles */
+.workspace-manager {
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.workspace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding: 15px 20px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+}
+
+.workspace-header h2 {
+  color: #172b4d;
+  margin: 0;
+}
+
+.current-workspace {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.current-workspace span {
+  color: #172b4d;
+  font-size: 14px;
+}
+
+.copy-key-btn {
+  background-color: #0079bf;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.copy-key-btn:hover {
+  background-color: #005a8b;
+}
+
+.workspace-actions {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.create-workspace-btn,
+.join-workspace-btn {
+  background-color: #0079bf;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.create-workspace-btn:hover,
+.join-workspace-btn:hover {
+  background-color: #005a8b;
+}
+
+.join-workspace-btn {
+  background-color: #26de81;
+}
+
+.join-workspace-btn:hover {
+  background-color: #20c46e;
+}
+
+.error-message {
+  background-color: #ffebe6;
+  color: #bf2600;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  border: 1px solid #ffbdad;
+}
+
+.create-form,
+.join-form {
+  background-color: #f4f5f7;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.create-form h3,
+.join-form h3 {
+  color: #172b4d;
+  margin-bottom: 15px;
+}
+
+.create-form input,
+.join-form input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 15px;
+  outline: none;
+}
+
+.create-form input:focus,
+.join-form input:focus {
+  border-color: #0079bf;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.form-actions button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.form-actions button:first-child {
+  background-color: #0079bf;
+  color: white;
+}
+
+.form-actions button:first-child:hover {
+  background-color: #005a8b;
+}
+
+.form-actions button:last-child {
+  background-color: #e4e6ea;
+  color: #172b4d;
+}
+
+.form-actions button:last-child:hover {
+  background-color: #d2d4d8;
+}
+
+.workspace-list h3 {
+  color: #172b4d;
+  margin-bottom: 15px;
+}
+
+.workspaces {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.workspace-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.workspace-item.active {
+  border-color: #0079bf;
+  background-color: #e6f3ff;
+}
+
+.workspace-info h4 {
+  color: #172b4d;
+  margin: 0 0 8px 0;
+}
+
+.workspace-info p {
+  color: #6b778c;
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.workspace-info small {
+  color: #9aa0a6;
+  font-size: 12px;
+}
+
+.workspace-actions-item {
+  display: flex;
+  gap: 8px;
+}
+
+.workspace-actions-item button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.workspace-actions-item button:not(.delete-btn) {
+  background-color: #0079bf;
+  color: white;
+}
+
+.workspace-actions-item button:not(.delete-btn):hover {
+  background-color: #005a8b;
+}
+
+.delete-btn {
+  background-color: #de350b;
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #bf2600;
+}
+
+.workspace-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.workspace-key {
+  font-family: 'Courier New', monospace;
+  background-color: rgba(255, 255, 255, 0.7);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #172b4d;
+}
+
+.workspace-manager-btn {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.workspace-manager-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  z-index: 1000;
+}

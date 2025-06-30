@@ -3,13 +3,16 @@ import './App.css';
 import { database, Board as BoardType } from './database/database';
 import Board from './components/Board';
 import BoardSelector from './components/BoardSelector';
+import WorkspaceManager from './components/WorkspaceManager';
+import { Workspace, getCurrentWorkspace, setCurrentWorkspace, createWorkspace } from './utils/workspace';
 
-type AppView = 'boards' | 'board';
+type AppView = 'workspace' | 'boards' | 'board';
 
 function App() {
   const [boards, setBoards] = useState<BoardType[]>([]);
   const [currentBoard, setCurrentBoard] = useState<BoardType | null>(null);
-  const [currentView, setCurrentView] = useState<AppView>('boards');
+  const [currentView, setCurrentView] = useState<AppView>('workspace');
+  const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,9 +21,22 @@ function App() {
 
   const initializeApp = async () => {
     try {
-      await database.init();
+      // Check if we have a current workspace
+      let workspace = getCurrentWorkspace();
+      
+      // If no workspace exists, create a default one
+      if (!workspace) {
+        workspace = createWorkspace('Mi Workspace');
+        setCurrentWorkspace(workspace);
+      }
+      
+      setCurrentWorkspaceState(workspace);
+      
+      // Initialize database with the current workspace
+      await database.init(workspace.id);
       const allBoards = database.getBoards();
       setBoards(allBoards);
+      setCurrentView('boards');
     } catch (error) {
       console.error('Error initializing database:', error);
       // If there's an error, it might be due to schema changes
@@ -80,6 +96,30 @@ function App() {
     setCurrentBoard(null);
   };
 
+  const handleWorkspaceChange = async (workspace: Workspace) => {
+    try {
+      setLoading(true);
+      setCurrentWorkspaceState(workspace);
+      setCurrentWorkspace(workspace);
+      
+      // Switch database to new workspace
+      await database.switchWorkspace(workspace.id);
+      const allBoards = database.getBoards();
+      setBoards(allBoards);
+      
+      setCurrentView('boards');
+      setCurrentBoard(null);
+    } catch (error) {
+      console.error('Error switching workspace:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleShowWorkspaceManager = () => {
+    setCurrentView('workspace');
+  };
+
   if (loading) {
     return (
       <div className="App">
@@ -88,9 +128,26 @@ function App() {
     );
   }
 
+  if (currentView === 'workspace') {
+    return (
+      <div className="App">
+        <WorkspaceManager onWorkspaceChange={handleWorkspaceChange} />
+      </div>
+    );
+  }
+
   if (currentView === 'boards') {
     return (
       <div className="App">
+        <div className="workspace-header">
+          <div className="workspace-info">
+            <span>Workspace: <strong>{currentWorkspace?.name}</strong></span>
+            <span className="workspace-key">Clave: {currentWorkspace?.key}</span>
+          </div>
+          <button className="workspace-manager-btn" onClick={handleShowWorkspaceManager}>
+            ⚙️ Gestionar Workspaces
+          </button>
+        </div>
         <BoardSelector
           boards={boards}
           onSelectBoard={handleSelectBoard}
@@ -109,6 +166,12 @@ function App() {
           <button className="back-to-boards-btn" onClick={handleBackToBoards}>
             ← Volver a tableros
           </button>
+          <div className="workspace-info">
+            <span>Workspace: <strong>{currentWorkspace?.name}</strong></span>
+            <button className="workspace-manager-btn" onClick={handleShowWorkspaceManager}>
+              ⚙️ Workspaces
+            </button>
+          </div>
         </div>
         <Board board={currentBoard} />
       </div>
