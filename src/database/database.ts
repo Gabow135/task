@@ -1,5 +1,6 @@
 import initSqlJs from 'sql.js';
 import { getCurrentWorkspace, getWorkspaceDbKey } from '../utils/workspace';
+import { firebaseService } from '../services/firebase';
 
 export interface Board {
   id: number;
@@ -28,6 +29,7 @@ export interface Card {
 class Database {
   private db: any = null;
   private currentWorkspaceId: string | null = null;
+  private currentWorkspaceKey: string | null = null;
 
   async init(workspaceId?: string) {
     // Initialize SQL.js with correct path for task subdirectory
@@ -52,6 +54,13 @@ class Database {
     } else {
       const currentWorkspace = getCurrentWorkspace();
       this.currentWorkspaceId = currentWorkspace?.id || null;
+      this.currentWorkspaceKey = currentWorkspace?.key || null;
+    }
+    
+    // If we have a workspace, set the key
+    if (this.currentWorkspaceId && !this.currentWorkspaceKey) {
+      const currentWorkspace = getCurrentWorkspace();
+      this.currentWorkspaceKey = currentWorkspace?.key || null;
     }
 
     // Check if we have saved data in localStorage for this workspace
@@ -157,6 +166,47 @@ class Database {
     await this.init(workspaceId);
   }
 
+  // Sync with Firebase
+  private async syncWithFirebase<T>(
+    operation: 'create' | 'update' | 'delete',
+    type: 'board' | 'list' | 'card',
+    data: T,
+    id?: number
+  ): Promise<void> {
+    if (!this.currentWorkspaceKey) {
+      return;
+    }
+
+    try {
+      switch (type) {
+        case 'board':
+          if (operation === 'create' || operation === 'update') {
+            await firebaseService.saveBoard(this.currentWorkspaceKey, data as Board);
+          } else if (operation === 'delete' && id) {
+            await firebaseService.deleteBoard(this.currentWorkspaceKey, id);
+          }
+          break;
+        case 'list':
+          if (operation === 'create' || operation === 'update') {
+            await firebaseService.saveList(this.currentWorkspaceKey, data as List);
+          } else if (operation === 'delete' && id) {
+            await firebaseService.deleteList(this.currentWorkspaceKey, id);
+          }
+          break;
+        case 'card':
+          if (operation === 'create' || operation === 'update') {
+            await firebaseService.saveCard(this.currentWorkspaceKey, data as Card);
+          } else if (operation === 'delete' && id) {
+            await firebaseService.deleteCard(this.currentWorkspaceKey, id);
+          }
+          break;
+      }
+    } catch (error) {
+      console.warn('Firebase sync failed:', error);
+      // Continue with local operation even if Firebase sync fails
+    }
+  }
+
   // Board operations
   createBoard(name: string): Board {
     if (!this.db) {
@@ -170,11 +220,16 @@ class Database {
     stmt.free();
     this.saveToLocalStorage();
     
-    return {
+    const board: Board = {
       id: result.lastInsertId,
       name: name.trim(),
       created_at: new Date().toISOString()
     };
+
+    // Sync with Firebase
+    this.syncWithFirebase('create', 'board', board);
+    
+    return board;
   }
 
   getBoards(): Board[] {
@@ -210,6 +265,14 @@ class Database {
     stmt.run([name.trim(), id]);
     stmt.free();
     this.saveToLocalStorage();
+
+    // Sync with Firebase
+    const updatedBoard: Board = {
+      id,
+      name: name.trim(),
+      created_at: new Date().toISOString() // We don't have the original created_at, but Firebase will keep it
+    };
+    this.syncWithFirebase('update', 'board', updatedBoard);
   }
 
   deleteBoard(id: number): void {
@@ -223,6 +286,9 @@ class Database {
     stmt.run([id]);
     stmt.free();
     this.saveToLocalStorage();
+
+    // Sync with Firebase
+    this.syncWithFirebase('delete', 'board', null, id);
   }
 
   // List operations
@@ -241,13 +307,18 @@ class Database {
     stmt.free();
     this.saveToLocalStorage();
     
-    return {
+    const list: List = {
       id: result.lastInsertId,
       board_id: boardId,
       name: name.trim(),
       position,
       created_at: new Date().toISOString()
     };
+
+    // Sync with Firebase
+    this.syncWithFirebase('create', 'list', list);
+    
+    return list;
   }
 
   getListsByBoard(boardId: number): List[] {
@@ -277,6 +348,18 @@ class Database {
     stmt.run([name, id]);
     stmt.free();
     this.saveToLocalStorage();
+
+    // Get the updated list for Firebase sync
+    const results = this.db.exec("SELECT * FROM lists WHERE id = ?", [id]);
+    if (results.length > 0) {
+      const columns = results[0].columns;
+      const values = results[0].values[0];
+      const list: any = {};
+      columns.forEach((col: string, index: number) => {
+        list[col] = values[index];
+      });
+      this.syncWithFirebase('update', 'list', list as List);
+    }
   }
 
   updateListPosition(id: number, position: number): void {
@@ -287,6 +370,18 @@ class Database {
     stmt.run([position, id]);
     stmt.free();
     this.saveToLocalStorage();
+
+    // Get the updated list for Firebase sync
+    const results = this.db.exec("SELECT * FROM lists WHERE id = ?", [id]);
+    if (results.length > 0) {
+      const columns = results[0].columns;
+      const values = results[0].values[0];
+      const list: any = {};
+      columns.forEach((col: string, index: number) => {
+        list[col] = values[index];
+      });
+      this.syncWithFirebase('update', 'list', list as List);
+    }
   }
 
   deleteList(id: number): void {
@@ -297,6 +392,9 @@ class Database {
     stmt.run([id]);
     stmt.free();
     this.saveToLocalStorage();
+
+    // Sync with Firebase
+    this.syncWithFirebase('delete', 'list', null, id);
   }
 
   // Card operations
@@ -317,7 +415,7 @@ class Database {
     stmt.free();
     this.saveToLocalStorage();
     
-    return {
+    const card: Card = {
       id: result.lastInsertId,
       list_id: listId,
       title: title.trim(),
@@ -326,6 +424,11 @@ class Database {
       position,
       created_at: new Date().toISOString()
     };
+
+    // Sync with Firebase
+    this.syncWithFirebase('create', 'card', card);
+    
+    return card;
   }
 
   getCardsByList(listId: number): Card[] {
@@ -357,6 +460,18 @@ class Database {
     stmt.run([title, safeDescription, safeImage, id]);
     stmt.free();
     this.saveToLocalStorage();
+
+    // Get the updated card for Firebase sync
+    const results = this.db.exec("SELECT * FROM cards WHERE id = ?", [id]);
+    if (results.length > 0) {
+      const columns = results[0].columns;
+      const values = results[0].values[0];
+      const card: any = {};
+      columns.forEach((col: string, index: number) => {
+        card[col] = values[index];
+      });
+      this.syncWithFirebase('update', 'card', card as Card);
+    }
   }
 
   updateCardPosition(id: number, listId: number, position: number): void {
@@ -367,6 +482,18 @@ class Database {
     stmt.run([listId, position, id]);
     stmt.free();
     this.saveToLocalStorage();
+
+    // Get the updated card for Firebase sync
+    const results = this.db.exec("SELECT * FROM cards WHERE id = ?", [id]);
+    if (results.length > 0) {
+      const columns = results[0].columns;
+      const values = results[0].values[0];
+      const card: any = {};
+      columns.forEach((col: string, index: number) => {
+        card[col] = values[index];
+      });
+      this.syncWithFirebase('update', 'card', card as Card);
+    }
   }
 
   deleteCard(id: number): void {
@@ -377,6 +504,9 @@ class Database {
     stmt.run([id]);
     stmt.free();
     this.saveToLocalStorage();
+
+    // Sync with Firebase
+    this.syncWithFirebase('delete', 'card', null, id);
   }
 }
 
