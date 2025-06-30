@@ -4,7 +4,8 @@ import { database, Board as BoardType } from './database/database';
 import Board from './components/Board';
 import BoardSelector from './components/BoardSelector';
 import WorkspaceManager from './components/WorkspaceManager';
-import { Workspace, getCurrentWorkspace, setCurrentWorkspace, createWorkspace } from './utils/workspace';
+import { Workspace } from './utils/workspace';
+import { hybridWorkspaceService } from './utils/hybridWorkspace';
 
 type AppView = 'workspace' | 'boards' | 'board';
 
@@ -22,12 +23,12 @@ function App() {
   const initializeApp = async () => {
     try {
       // Check if we have a current workspace
-      let workspace = getCurrentWorkspace();
+      let workspace = hybridWorkspaceService.getCurrentWorkspace();
       
       // If no workspace exists, create a default one
       if (!workspace) {
-        workspace = createWorkspace('Mi Workspace');
-        setCurrentWorkspace(workspace);
+        workspace = await hybridWorkspaceService.createWorkspace('Mi Workspace');
+        hybridWorkspaceService.setCurrentWorkspace(workspace);
       }
       
       setCurrentWorkspaceState(workspace);
@@ -100,12 +101,20 @@ function App() {
     try {
       setLoading(true);
       setCurrentWorkspaceState(workspace);
-      setCurrentWorkspace(workspace);
+      hybridWorkspaceService.setCurrentWorkspace(workspace);
       
       // Switch database to new workspace
       await database.switchWorkspace(workspace.id);
       const allBoards = database.getBoards();
       setBoards(allBoards);
+      
+      // Sync workspace data to cloud if available
+      try {
+        const databaseData = hybridWorkspaceService.getWorkspaceDatabaseData(workspace.id);
+        await hybridWorkspaceService.syncWorkspaceToCloud(workspace, databaseData);
+      } catch (syncError) {
+        console.warn('Failed to sync workspace to cloud:', syncError);
+      }
       
       setCurrentView('boards');
       setCurrentBoard(null);

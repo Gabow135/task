@@ -1,14 +1,7 @@
 import { useState, useEffect } from 'react';
-import { 
-  Workspace, 
-  createWorkspace, 
-  getSavedWorkspaces, 
-  getCurrentWorkspace, 
-  setCurrentWorkspace, 
-  findWorkspaceByKey,
-  removeWorkspace,
-  isValidWorkspaceKey 
-} from '../utils/workspace';
+import { Workspace, isValidWorkspaceKey } from '../utils/workspace';
+import { hybridWorkspaceService } from '../utils/hybridWorkspace';
+import { FIREBASE_ENABLED } from '../config/firebase-config';
 
 interface WorkspaceManagerProps {
   onWorkspaceChange: (workspace: Workspace) => void;
@@ -22,27 +15,38 @@ function WorkspaceManager({ onWorkspaceChange }: WorkspaceManagerProps) {
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [joinKey, setJoinKey] = useState('');
   const [error, setError] = useState('');
+  const [isCloudConnected, setIsCloudConnected] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadWorkspaces();
+    checkCloudConnection();
   }, []);
 
   const loadWorkspaces = () => {
-    const savedWorkspaces = getSavedWorkspaces();
-    const current = getCurrentWorkspace();
+    const savedWorkspaces = hybridWorkspaceService.getSavedWorkspaces();
+    const current = hybridWorkspaceService.getCurrentWorkspace();
     setWorkspaces(savedWorkspaces);
     setCurrentWorkspaceState(current);
   };
 
-  const handleCreateWorkspace = () => {
+  const checkCloudConnection = async () => {
+    if (FIREBASE_ENABLED) {
+      const connected = await hybridWorkspaceService.isCloudAvailable();
+      setIsCloudConnected(connected);
+    }
+  };
+
+  const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) {
       setError('Por favor ingresa un nombre para el workspace');
       return;
     }
 
+    setLoading(true);
     try {
-      const workspace = createWorkspace(newWorkspaceName.trim());
-      setCurrentWorkspace(workspace);
+      const workspace = await hybridWorkspaceService.createWorkspace(newWorkspaceName.trim());
+      hybridWorkspaceService.setCurrentWorkspace(workspace);
       setCurrentWorkspaceState(workspace);
       onWorkspaceChange(workspace);
       loadWorkspaces();
@@ -51,10 +55,12 @@ function WorkspaceManager({ onWorkspaceChange }: WorkspaceManagerProps) {
       setError('');
     } catch (err) {
       setError('Error al crear el workspace');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleJoinWorkspace = () => {
+  const handleJoinWorkspace = async () => {
     if (!joinKey.trim()) {
       setError('Por favor ingresa una clave de workspace');
       return;
@@ -65,38 +71,52 @@ function WorkspaceManager({ onWorkspaceChange }: WorkspaceManagerProps) {
       return;
     }
 
-    const workspace = findWorkspaceByKey(joinKey.trim());
-    if (!workspace) {
-      setError('No se encontró un workspace con esa clave');
-      return;
-    }
+    setLoading(true);
+    try {
+      const workspace = await hybridWorkspaceService.findWorkspaceByKey(joinKey.trim());
+      if (!workspace) {
+        setError('No se encontró un workspace con esa clave');
+        return;
+      }
 
-    setCurrentWorkspace(workspace);
-    setCurrentWorkspaceState(workspace);
-    onWorkspaceChange(workspace);
-    loadWorkspaces();
-    setShowJoinForm(false);
-    setJoinKey('');
-    setError('');
+      hybridWorkspaceService.setCurrentWorkspace(workspace);
+      setCurrentWorkspaceState(workspace);
+      onWorkspaceChange(workspace);
+      loadWorkspaces();
+      setShowJoinForm(false);
+      setJoinKey('');
+      setError('');
+    } catch (err) {
+      setError('Error al unirse al workspace');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSwitchWorkspace = (workspace: Workspace) => {
-    setCurrentWorkspace(workspace);
+    hybridWorkspaceService.setCurrentWorkspace(workspace);
     setCurrentWorkspaceState(workspace);
     onWorkspaceChange(workspace);
   };
 
-  const handleDeleteWorkspace = (workspaceId: string) => {
+  const handleDeleteWorkspace = async (workspaceId: string) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este workspace? Se perderán todos los datos.')) {
-      removeWorkspace(workspaceId);
-      loadWorkspaces();
-      
-      if (currentWorkspace?.id === workspaceId) {
-        setCurrentWorkspaceState(null);
-        const remaining = getSavedWorkspaces();
-        if (remaining.length > 0) {
-          handleSwitchWorkspace(remaining[0]);
+      setLoading(true);
+      try {
+        await hybridWorkspaceService.removeWorkspace(workspaceId);
+        loadWorkspaces();
+        
+        if (currentWorkspace?.id === workspaceId) {
+          setCurrentWorkspaceState(null);
+          const remaining = hybridWorkspaceService.getSavedWorkspaces();
+          if (remaining.length > 0) {
+            handleSwitchWorkspace(remaining[0]);
+          }
         }
+      } catch (err) {
+        setError('Error al eliminar el workspace');
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -111,6 +131,17 @@ function WorkspaceManager({ onWorkspaceChange }: WorkspaceManagerProps) {
     <div className="workspace-manager">
       <div className="workspace-header">
         <h2>Gestión de Workspaces</h2>
+        <div className="cloud-status">
+          {FIREBASE_ENABLED ? (
+            <span className={`cloud-indicator ${isCloudConnected ? 'connected' : 'disconnected'}`}>
+              {isCloudConnected ? '☁️ Conectado' : '❌ Sin conexión'}
+            </span>
+          ) : (
+            <span className="cloud-indicator disabled">
+              📱 Solo local
+            </span>
+          )}
+        </div>
         {currentWorkspace && (
           <div className="current-workspace">
             <span>Workspace actual: <strong>{currentWorkspace.name}</strong></span>
@@ -129,18 +160,28 @@ function WorkspaceManager({ onWorkspaceChange }: WorkspaceManagerProps) {
         <button 
           className="create-workspace-btn"
           onClick={() => setShowCreateForm(!showCreateForm)}
+          disabled={loading}
         >
-          + Crear Workspace
+          {loading ? '⏳ Creando...' : '+ Crear Workspace'}
         </button>
         <button 
           className="join-workspace-btn"
           onClick={() => setShowJoinForm(!showJoinForm)}
+          disabled={loading}
         >
-          🔗 Unirse a Workspace
+          {loading ? '⏳ Buscando...' : '🔗 Unirse a Workspace'}
         </button>
       </div>
 
       {error && <div className="error-message">{error}</div>}
+
+      {!FIREBASE_ENABLED && (
+        <div className="info-message">
+          <h4>💡 Para colaboración en tiempo real:</h4>
+          <p>Configure Firebase en <code>src/config/firebase-config.ts</code> para permitir que múltiples usuarios colaboren usando la misma clave de workspace.</p>
+          <p>Actualmente solo funciona en modo local.</p>
+        </div>
+      )}
 
       {showCreateForm && (
         <div className="create-form">
@@ -150,7 +191,7 @@ function WorkspaceManager({ onWorkspaceChange }: WorkspaceManagerProps) {
             placeholder="Nombre del workspace"
             value={newWorkspaceName}
             onChange={(e) => setNewWorkspaceName(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleCreateWorkspace()}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkspace()}
           />
           <div className="form-actions">
             <button onClick={handleCreateWorkspace}>Crear</button>
@@ -167,7 +208,7 @@ function WorkspaceManager({ onWorkspaceChange }: WorkspaceManagerProps) {
             placeholder="Clave del workspace (8 caracteres)"
             value={joinKey}
             onChange={(e) => setJoinKey(e.target.value.toUpperCase())}
-            onKeyPress={(e) => e.key === 'Enter' && handleJoinWorkspace()}
+            onKeyDown={(e) => e.key === 'Enter' && handleJoinWorkspace()}
             maxLength={8}
           />
           <div className="form-actions">
