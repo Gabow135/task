@@ -29,7 +29,16 @@ class Database {
 
   async init() {
     const SQL = await initSqlJs({
-      locateFile: () => `/sql-wasm.wasm`
+      locateFile: (file) => {
+        // Handle different deployment environments
+        if (process.env.NODE_ENV === 'production') {
+          // For GitHub Pages deployment
+          return `${process.env.PUBLIC_URL || ''}/${file}`;
+        } else {
+          // For local development
+          return `/${file}`;
+        }
+      }
     });
 
     // Check if we have saved data in localStorage
