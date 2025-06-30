@@ -26,7 +26,7 @@ Actualmente el sistema funciona solo en modo local (localStorage), lo que signif
 
 ### 3. Configurar Reglas de Seguridad
 
-En **Firestore Database > Reglas**, reemplaza el contenido con:
+1. En **Firestore Database > Reglas**, reemplaza el contenido con:
 
 ```javascript
 rules_version = '2';
@@ -41,7 +41,17 @@ service cloud.firestore {
 }
 ```
 
+2. **¡IMPORTANTE!** Haz clic en **"Publicar"** para aplicar las reglas
+3. Si no publicas las reglas, verás errores de permisos
+
 ⚠️ **Nota de Seguridad**: Estas reglas permiten acceso completo. Para producción, considera implementar autenticación.
+
+### ⚠️ Solución de Errores Comunes
+
+**Error: "Missing or insufficient permissions"**
+- Significa que no configuraste o no publicaste las reglas de Firestore
+- Ve a Firebase Console → Firestore Database → Reglas
+- Copia las reglas de arriba y haz clic en "Publicar"
 
 ### 4. Registrar tu Aplicación Web
 

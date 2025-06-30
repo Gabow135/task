@@ -30,16 +30,19 @@ class Database {
   private currentWorkspaceId: string | null = null;
 
   async init(workspaceId?: string) {
+    // Initialize SQL.js with correct path for task subdirectory
     const SQL = await initSqlJs({
       locateFile: (file) => {
-        // Handle different deployment environments
-        if (process.env.NODE_ENV === 'production') {
-          // For GitHub Pages deployment
-          return `${process.env.PUBLIC_URL || ''}/${file}`;
-        } else {
-          // For local development
-          return `/${file}`;
-        }
+        console.log('SQL.js requesting file:', file);
+        
+        // Build the correct path considering the /task subdirectory
+        const basePath = process.env.PUBLIC_URL || '';
+        const fullPath = `${basePath}/${file}`;
+        
+        console.log('Serving from:', fullPath);
+        console.log('Current location:', window.location.href);
+        
+        return fullPath;
       }
     });
 

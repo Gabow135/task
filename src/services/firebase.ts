@@ -117,11 +117,38 @@ class FirebaseService {
     
     try {
       // Intenta hacer una operación simple para verificar la conectividad
-      const testDoc = doc(db, 'test', 'connectivity');
+      const testDoc = doc(db, 'workspaces', 'test-connection');
       await getDoc(testDoc);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Firebase not available:', error);
+      
+      // Proporcionar información específica sobre el error
+      if (error?.code === 'permission-denied') {
+        console.error(`
+🚨 FIREBASE PERMISSION ERROR:
+Las reglas de Firestore están bloqueando el acceso.
+
+SOLUCIÓN:
+1. Ve a Firebase Console → Firestore Database → Reglas
+2. Reemplaza las reglas con:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /workspaces/{document} {
+      allow read, write: if true;
+    }
+  }
+}
+
+3. Publica las reglas
+4. Recarga la aplicación
+        `);
+      } else if (error?.code === 'unavailable') {
+        console.error('Firebase service temporarily unavailable');
+      }
+      
       return false;
     }
   }

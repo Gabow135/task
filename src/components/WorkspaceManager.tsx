@@ -17,6 +17,7 @@ function WorkspaceManager({ onWorkspaceChange }: WorkspaceManagerProps) {
   const [error, setError] = useState('');
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [firebaseError, setFirebaseError] = useState('');
 
   useEffect(() => {
     loadWorkspaces();
@@ -32,8 +33,23 @@ function WorkspaceManager({ onWorkspaceChange }: WorkspaceManagerProps) {
 
   const checkCloudConnection = async () => {
     if (FIREBASE_ENABLED) {
-      const connected = await hybridWorkspaceService.isCloudAvailable();
-      setIsCloudConnected(connected);
+      try {
+        const connected = await hybridWorkspaceService.isCloudAvailable();
+        setIsCloudConnected(connected);
+        
+        if (!connected) {
+          setFirebaseError('No se pudo conectar a Firebase. Revisa la consola para más detalles.');
+        } else {
+          setFirebaseError('');
+        }
+      } catch (error: any) {
+        setIsCloudConnected(false);
+        if (error?.code === 'permission-denied') {
+          setFirebaseError('Error de permisos en Firebase. Las reglas de Firestore necesitan ser configuradas.');
+        } else {
+          setFirebaseError('Error de conexión con Firebase.');
+        }
+      }
     }
   };
 
@@ -174,6 +190,31 @@ function WorkspaceManager({ onWorkspaceChange }: WorkspaceManagerProps) {
       </div>
 
       {error && <div className="error-message">{error}</div>}
+
+      {firebaseError && (
+        <div className="error-message">
+          <h4>🚨 Error de Firebase:</h4>
+          <p>{firebaseError}</p>
+          {firebaseError.includes('permisos') && (
+            <details style={{marginTop: '10px'}}>
+              <summary style={{cursor: 'pointer', fontWeight: 'bold'}}>Ver solución</summary>
+              <div style={{marginTop: '10px', fontSize: '12px', fontFamily: 'monospace', backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '4px'}}>
+                <p><strong>1. Ve a Firebase Console → Firestore Database → Reglas</strong></p>
+                <p><strong>2. Reemplaza las reglas con:</strong></p>
+                <pre>{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /workspaces/{document} {
+      allow read, write: if true;
+    }
+  }
+}`}</pre>
+                <p><strong>3. Haz clic en "Publicar" y recarga la app</strong></p>
+              </div>
+            </details>
+          )}
+        </div>
+      )}
 
       {!FIREBASE_ENABLED && (
         <div className="info-message">
