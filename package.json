@@ -2,7 +2,7 @@
   "name": "trello-app",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://gabow135.github.io/trello-app",
+  "homepage": "https://gabow135.github.io/task",
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
     "@testing-library/dom": "^10.4.0",
