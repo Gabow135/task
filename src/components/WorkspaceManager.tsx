@@ -269,27 +269,48 @@ service cloud.firestore {
               <div 
                 key={workspace.id} 
                 className={`workspace-item ${currentWorkspace?.id === workspace.id ? 'active' : ''}`}
+                onClick={(e) => {
+                  // Don't trigger if clicking on buttons inside
+                  if (!(e.target instanceof HTMLButtonElement)) {
+                    handleSwitchWorkspace(workspace);
+                  }
+                }}
+                style={{ cursor: 'pointer' }}
               >
                 <div className="workspace-info">
-                  <h4>{workspace.name}</h4>
+                  <h4>
+                    {workspace.name}
+                    {currentWorkspace?.id === workspace.id && (
+                      <span className="current-workspace-badge">Actual</span>
+                    )}
+                  </h4>
                   <p>Clave: {workspace.key}</p>
                   <small>Último acceso: {new Date(workspace.last_accessed).toLocaleDateString()}</small>
                 </div>
-                <div className="workspace-actions-item">
-                  {currentWorkspace?.id !== workspace.id && (
-                    <button onClick={() => handleSwitchWorkspace(workspace)}>
-                      Cambiar
+                <div className="workspace-actions-item" onClick={e => e.stopPropagation()}>
+<div className="action-btn-with-text" onClick={(e) => e.stopPropagation()}>
+                    <button 
+                      onClick={() => copyWorkspaceKey(workspace.key)}
+                      aria-label="Copiar clave"
+                      className="action-btn"
+                    >
+                      📋
                     </button>
-                  )}
-                  <button onClick={() => copyWorkspaceKey(workspace.key)}>
-                    Copiar Clave
-                  </button>
-                  <button 
-                    className="delete-btn"
-                    onClick={() => handleDeleteWorkspace(workspace.id)}
-                  >
-                    Eliminar
-                  </button>
+                    <span className="action-btn-text">Copiar</span>
+                  </div>
+                  <div className="action-btn-with-text" onClick={(e) => e.stopPropagation()}>
+                    <button 
+                      className="action-btn delete-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteWorkspace(workspace.id);
+                      }}
+                      aria-label="Eliminar workspace"
+                    >
+                      🗑️
+                    </button>
+                    <span className="action-btn-text">Eliminar</span>
+                  </div>
                 </div>
               </div>
             ))}
